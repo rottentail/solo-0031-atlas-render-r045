@@ -1,0 +1,7 @@
+.git
+var
+*.tmp
+__pycache__
+examples
+docs
+deploy

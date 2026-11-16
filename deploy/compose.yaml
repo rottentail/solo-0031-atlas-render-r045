@@ -1,0 +1,43 @@
+services:
+  atlas:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    image: atlas-render:local
+    # One instance only. The named volume below is the single source of truth.
+    restart: unless-stopped
+    read_only: true
+    user: "65532:65532"
+    environment:
+      ATLAS_ADDR: "0.0.0.0:8763"
+      ATLAS_STATE: "/var/lib/atlas/state.json"
+    ports:
+      - "127.0.0.1:8763:8763"
+    volumes:
+      - atlas-state:/var/lib/atlas
+    # No network-visible state directory and no code bind mounts: the image
+    # ships the binary and the only writable path is the named volume.
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+    stop_grace_period: 20s
+    healthcheck:
+      # Liveness: is the process answering HTTP? A data-volume problem must
+      # show up in readiness, not restart the container.
+      test: ["CMD", "/usr/local/bin/atlas", "check", "-mode", "live"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    deploy:
+      resources:
+        limits:
+          # Rendering is CPU bound; keep a ceiling so a burst cannot starve
+          # the host. Raise together with the 64-job queue limit if needed.
+          cpus: "2.0"
+          memory: 1g
+
+volumes:
+  atlas-state:
+    # The volume is the durable boundary. Stopping (SIGTERM) or killing
+    # (SIGKILL) the container must leave accepted jobs and receipts in it.
+    name: atlas-state

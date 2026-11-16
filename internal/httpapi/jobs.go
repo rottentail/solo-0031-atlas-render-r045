@@ -24,7 +24,7 @@ func (a API) submit(w http.ResponseWriter, r *http.Request) {
 	write(w, 202, v)
 }
 func (a API) getJob(w http.ResponseWriter, r *http.Request) {
-	v, ok := a.Service.Store.Read().Jobs[r.PathValue("id")]
+	v, ok := a.Service.Store().Read().Jobs[r.PathValue("id")]
 	if !ok {
 		fail(w, model.Missing("job not found"))
 		return
@@ -101,8 +101,8 @@ func (a API) compare(w http.ResponseWriter, r *http.Request) {
 	write(w, 200, v)
 }
 func (a API) status(w http.ResponseWriter, r *http.Request) {
-	write(w, 200, observe.Summary(a.Service.Store.Read()))
+	write(w, 200, observe.Summary(a.Service.Store().Read()))
 }
 func (a API) events(w http.ResponseWriter, r *http.Request) {
-	write(w, 200, a.Service.Store.Read().Events)
+	write(w, 200, a.Service.Store().Read().Events)
 }

@@ -5,16 +5,32 @@ After=network.target
 [Service]
 Type=simple
 User=atlas
+Group=atlas
 WorkingDirectory=/opt/atlas
 Environment=ATLAS_ADDR=127.0.0.1:8763
 Environment=ATLAS_STATE=/var/lib/atlas/state.json
 ExecStart=/opt/atlas/atlas
+# 0 clean stop, 1 fatal error, 3 state locked by another instance.
 Restart=on-failure
-TimeoutStopSec=20
+RestartPreventExitStatus=3
+TimeoutStopSec=25
+
+# The code tree is read-only at runtime; only the state volume is writable.
 NoNewPrivileges=true
 PrivateTmp=true
+PrivateDevices=true
 ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictNamespaces=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
 ReadWritePaths=/var/lib/atlas
+StateDirectory=atlas
+StateDirectoryMode=0750
 
 [Install]
 WantedBy=multi-user.target

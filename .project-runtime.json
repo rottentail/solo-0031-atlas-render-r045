@@ -6,7 +6,8 @@
     ".go"
   ],
   "build_command": "go build ./...",
-  "testing": "deferred",
+  "test_command": "go test ./internal/persist ./internal/lifecycle ./internal/engine",
+  "testing": "targeted",
   "workflow_checks": [
     {
       "workflow_id": "create-scene",
@@ -71,12 +72,17 @@
     {
       "workflow_id": "observe-service",
       "command": "python3 scripts/walkthrough.py --workflow observe-service"
+    },
+    {
+      "workflow_id": "container-lifecycle",
+      "command": "python3 scripts/container_lifecycle.py"
     }
   ],
   "environment": {
     "go": ">=1.22",
-    "python": ">=3.9 for walkthrough",
-    "platform": "macOS or Linux; advisory file locking required"
+    "python": ">=3.9 for walkthrough and lifecycle checks",
+    "platform": "macOS or Linux; advisory file locking required",
+    "container": "optional; deploy/Dockerfile and deploy/compose.yaml target Linux/amd64 or arm64"
   },
   "run_command": "go run ./cmd/atlas"
 }

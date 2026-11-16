@@ -1,6 +1,6 @@
 # HTTP 协议
 
-所有业务路径以 `/v1` 开头。请求体使用 JSON，素材上传直接使用 PNG 字节。
+所有业务路径以 `/v1` 开头。请求体使用 JSON，素材上传直接使用 PNG 字节。未就绪时业务路径返回 503，`code` 为 `state_locked`、`state_invalid`、`state_unavailable` 或 `state_commit_failed`，含义见 `docs/operations.md`。
 
 | 方法和路径 | 请求 | 结果 |
 |---|---|---|
@@ -24,7 +24,7 @@
 | GET /status | 无 | 场景/素材/快照/任务计数和结果字节数 |
 | GET /events | 无 | 最多500个有序领域事件 |
 
-`GET /healthz` 不带 `/v1`，返回ready。它表明进程已打开并恢复状态，不包含单独的磁盘可写探测。任务响应省略固定输入的有效载荷，输入细节通过快照接口读取。
+`GET /healthz` 与 `GET /livez` 不带 `/v1`，表示进程存活并在服务 HTTP，不访问数据卷。`GET /readyz` 表示状态已打开、锁由本进程持有且状态目录当前可写；未就绪返回 503 与 `status`、`reason`、`error`、`statePath` 字段。存活与就绪的区分以及各 `reason` 的处置见 `docs/operations.md`。任务响应省略固定输入的有效载荷，输入细节通过快照接口读取。
 
 文档字段：width、height、background、layers。每个图层有id、kind、width、height、transform、opacity、fill；transform包括x、y、scaleX、scaleY、degrees。图层可以有clip（x/y/width/height），group使用children，polygon使用points，image使用assetId。solid颜料有color；linear还包括endColor、from、to。示例是可直接提交的完整请求。
 

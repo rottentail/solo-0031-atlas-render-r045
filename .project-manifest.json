@@ -62,6 +62,11 @@
       "id": "httpapi",
       "path": "internal/httpapi",
       "responsibility": "有界JSON解析和HTTP接口"
+    },
+    {
+      "id": "lifecycle",
+      "path": "internal/lifecycle",
+      "responsibility": "存活与就绪状态分离、状态故障分类"
     }
   ],
   "workflows": [
@@ -350,6 +355,24 @@
         "通过存储或渲染结果观察已提交事实"
       ],
       "verification": "python3 scripts/walkthrough.py --workflow observe-service"
+    },
+    {
+      "id": "container-lifecycle",
+      "name": "容器生命周期与状态卷",
+      "entry": "GET /livez + GET /readyz + state volume",
+      "success": "只读代码目录下以普通用户运行；SIGTERM与SIGKILL后已接收任务、收据和结果仍可用",
+      "failure": "同一状态卷的第二个实例以退出码3拒绝；不可写卷存活但就绪失败并返回503",
+      "module_ids": [
+        "persist",
+        "engine",
+        "lifecycle",
+        "httpapi"
+      ],
+      "steps": [
+        "经公开HTTP入口完成领域转换",
+        "通过存储或渲染结果观察已提交事实"
+      ],
+      "verification": "python3 scripts/container_lifecycle.py"
     }
   ],
   "complexity": {

@@ -35,4 +35,8 @@
 
 ## 验证与暂缓边界
 
-构建 `go build ./...`，静态检查 `go vet ./...`。`scripts/walkthrough.py` 通过实际HTTP进程验证生产流，覆盖修订、输入拒绝、归档恢复、素材退役、冻结、撤回、幂等、取消、重试、进程恢复、交换包、像素比较、清理和事件。基线不提供自动化测试套件；完整测试策略、性能与兼容矩阵留待后续任务构建。运行声明使用 `testing: deferred`，省略 `test_command`。
+构建 `go build ./...`，静态检查 `go vet ./...`。`scripts/walkthrough.py` 通过实际HTTP进程验证生产流，覆盖修订、输入拒绝、归档恢复、素材退役、冻结、撤回、幂等、取消、重试、进程恢复、交换包、像素比较、清理和事件。`scripts/container_lifecycle.py` 用真实进程验证只读代码目录、独立状态卷、SIGTERM与SIGKILL后的重启、同卷双实例退出码3、以及只读卷下存活但不可接收工作的分离。`internal/persist`、`internal/lifecycle`、`internal/engine` 含针对状态锁、就绪分类和提交重试的单元测试。完整测试策略、性能与兼容矩阵留待后续任务构建。
+
+## 运行形态
+
+服务以单可执行文件交付，`atlas` 运行服务，`atlas check -mode live|ready` 供容器健康检查。容器镜像分构建与运行两阶段，运行阶段为静态二进制、非root用户、只读代码层，状态仅写入独立卷 `/var/lib/atlas`。`GET /livez` 表示进程存活且不触碰数据卷；`GET /readyz` 表示状态已打开、锁由本进程持有且卷当前可写，未就绪返回503并区分 `state_locked`、`state_unusable`、`state_invalid` 等原因。同一状态路径的第二个实例以退出码3拒绝启动。运行声明使用 `testing: targeted` 与上述 `test_command`。

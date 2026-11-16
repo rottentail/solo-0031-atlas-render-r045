@@ -8,7 +8,7 @@ import (
 )
 
 func (s *Service) Export(id string) (bundle.Package, error) {
-	v, ok := s.Store.Read().Snapshots[id]
+	v, ok := s.Store().Read().Snapshots[id]
 	if !ok {
 		return bundle.Package{}, model.Missing("snapshot not found")
 	}
@@ -22,7 +22,7 @@ func (s *Service) Import(id, name string, p bundle.Package) (model.Scene, error)
 	if e := bundle.Validate(p); e != nil {
 		return out, e
 	}
-	e := s.Store.Update(func(st *model.State) error {
+	e := s.Store().Update(func(st *model.State) error {
 		if _, ok := st.Scenes[id]; ok {
 			return model.Conflict("destination scene already exists")
 		}

@@ -56,7 +56,9 @@ class Demo:
         self.proc = subprocess.Popen([str(self.binary)], env=env, stdout=self.log, stderr=self.log)
         for _ in range(100):
             try:
-                self.call('GET', '/healthz')
+                # Wait for readiness so a data-volume fault is reported as such
+                # instead of as an unexplained HTTP failure later in the flow.
+                self.call('GET', '/readyz')
                 return
             except (urllib.error.URLError, ConnectionError):
                 if self.proc.poll() is not None:

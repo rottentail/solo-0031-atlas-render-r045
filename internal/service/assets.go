@@ -16,7 +16,7 @@ func (s *Service) ImportAsset(id string, data []byte) (model.Asset, error) {
 		return out, e
 	}
 	out = model.Asset{ID: id, Digest: model.Digest(data), State: "available", Width: img.Bounds().Dx(), Height: img.Bounds().Dy(), PNG: data}
-	e = s.Store.Update(func(st *model.State) error {
+	e = s.Store().Update(func(st *model.State) error {
 		if old, ok := st.Assets[id]; ok {
 			if old.Digest == out.Digest && old.State == "available" {
 				out = old
@@ -31,7 +31,7 @@ func (s *Service) ImportAsset(id string, data []byte) (model.Asset, error) {
 	return out, e
 }
 func (s *Service) RetireAsset(id string) error {
-	return s.Store.Update(func(st *model.State) error {
+	return s.Store().Update(func(st *model.State) error {
 		a, ok := st.Assets[id]
 		if !ok {
 			return model.Missing("asset not found")

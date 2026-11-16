@@ -11,7 +11,26 @@ go build ./...
 go run ./cmd/atlas
 ```
 
-默认监听 `127.0.0.1:8763`，状态写入 `var/atlas-state.json`。可用 `ATLAS_ADDR`、`ATLAS_STATE` 改变监听地址和状态路径。同一个状态路径只能由一个进程打开。服务启动会验证持久数据并恢复中断的执行任务。默认部署面向受信网络中的单实例生产流程。
+默认监听 `127.0.0.1:8763`，状态写入 `var/atlas-state.json`。可用 `ATLAS_ADDR`、`ATLAS_STATE` 改变监听地址和状态路径。同一个状态路径只能由一个进程打开，第二个进程以退出码 3 拒绝启动。服务启动会验证持久数据并恢复中断的执行任务。默认部署面向受信网络中的单实例生产流程。
+
+## 容器运行
+
+代码目录只读、状态独立持久化：
+
+```sh
+docker build -f deploy/Dockerfile -t atlas-render:0.1 .
+docker compose -f deploy/compose.yaml up -d
+curl -fsS http://127.0.0.1:8763/livez
+curl -fsS http://127.0.0.1:8763/readyz
+```
+
+镜像两阶段构建，运行镜像只含静态二进制，以非 root 用户运行，可配只读根文件系统；命名卷 `atlas-state` 是唯一可写路径。存活探针用 `/livez`（或 `atlas check -mode live`），就绪探针用 `/readyz`：状态卷不可写时进程保持存活、就绪失败、业务返回 503，而不是重启循环。优雅停止、强制终止、双实例误挂同一卷和只读权限都可用真实进程验证：
+
+```sh
+python3 scripts/container_lifecycle.py --workdir /tmp/atlas-lifecycle
+```
+
+详见 `docs/operations.md`。
 
 ## 运行真实工作流
 
@@ -42,6 +61,6 @@ python3 scripts/walkthrough.py --workflow compare-renders
 
 透明度为 0–1，变换中的 `scaleX`、`scaleY` 必须显式设置；省略会成为零而被拒绝。组的透明度乘到每个后代，属于分布式透明语义；当前没有离屏隔离组。缩放 2 表示两倍尺寸渲染，不表示输出降采样。位图按最近邻采样，颜色直接在编码通道上混合。
 
-持久化使用完整 JSON 状态的原子替换，保留全部任务与快照，事件只保留最近 500 条。适合中小规模、单写实例工作负载。清理结果只释放 PNG 字节，仍保留任务事实和摘要。进程重启可恢复任务；突然断电的文件系统耐久性不作额外保证。
+持久化使用完整 JSON 状态的原子替换，保留全部任务与快照，事件只保留最近 500 条。适合中小规模、单写实例工作负载。清理结果只释放 PNG 字节，仍保留任务事实和摘要。进程重启可恢复任务；状态通过临时文件、`fsync` 与原子替换提交，强制终止只会残留下次启动会清理的临时文件。
 
-测试处于 deferred 阶段，基线未包含自动化测试套件或 `test_command`。生产工作流检查、构建与静态检查已单独提供。接口和持久状态的规则详见 `PROJECT_SPEC.md`、`docs/api.md`、`docs/operations.md`。
+验证命令：`go build ./...`、`go vet ./...`、`go test ./internal/persist ./internal/lifecycle ./internal/engine`（状态锁、就绪分类与提交重试的单元测试），以及上文的 `scripts/walkthrough.py`、`scripts/container_lifecycle.py`。完整测试策略、性能与兼容矩阵仍留待后续任务。接口和持久状态的规则详见 `PROJECT_SPEC.md`、`docs/api.md`、`docs/operations.md`。

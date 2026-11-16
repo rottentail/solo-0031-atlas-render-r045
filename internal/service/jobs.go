@@ -14,7 +14,7 @@ func (s *Service) Submit(snapshotID string, scale int, key string) (model.Job, e
 		return out, model.Invalid("idempotency key required (1..80 identifier characters)")
 	}
 	fingerprint := model.CanonicalDigest([]any{snapshotID, scale})
-	e := s.Store.Update(func(st *model.State) error {
+	e := s.Store().Update(func(st *model.State) error {
 		if r, ok := st.Receipts[key]; ok {
 			if r.Fingerprint != fingerprint {
 				return model.Conflict("idempotency key used for different request")
@@ -52,7 +52,7 @@ func (s *Service) Submit(snapshotID string, scale int, key string) (model.Job, e
 }
 func (s *Service) Cancel(id string) (model.Job, error) {
 	var out model.Job
-	e := s.Store.Update(func(st *model.State) error {
+	e := s.Store().Update(func(st *model.State) error {
 		j, ok := st.Jobs[id]
 		if !ok {
 			return model.Missing("job not found")
@@ -75,7 +75,7 @@ func (s *Service) Cancel(id string) (model.Job, error) {
 }
 func (s *Service) Retry(id string) (model.Job, error) {
 	var out model.Job
-	e := s.Store.Update(func(st *model.State) error {
+	e := s.Store().Update(func(st *model.State) error {
 		j, ok := st.Jobs[id]
 		if !ok {
 			return model.Missing("job not found")
@@ -104,7 +104,7 @@ func (s *Service) Retry(id string) (model.Job, error) {
 	return out, e
 }
 func (s *Service) Purge(id string) error {
-	return s.Store.Update(func(st *model.State) error {
+	return s.Store().Update(func(st *model.State) error {
 		a, ok := st.Artifacts[id]
 		if !ok {
 			return model.Missing("artifact not found")
@@ -120,7 +120,7 @@ func (s *Service) Purge(id string) error {
 	})
 }
 func (s *Service) Artifact(id string) (model.Artifact, error) {
-	a, ok := s.Store.Read().Artifacts[id]
+	a, ok := s.Store().Read().Artifacts[id]
 	if !ok {
 		return a, model.Missing("artifact not found")
 	}

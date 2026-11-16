@@ -1,0 +1,32 @@
+# Atlas Render runtime image. Use deploy/Dockerfile for distroless or this file
+# when building entirely from local sources without registry access:
+#   docker build -f deploy/Dockerfile.local -t atlas-render:dev .
+#
+# Compilation happens in a throwaway stage; the shipped image contains only a
+# static binary. The code tree is never mounted or copied into the writable
+# layer, so the container can run with a read-only root filesystem.
+
+FROM golang:1.22-bookworm AS build
+WORKDIR /src
+COPY go.mod ./
+COPY cmd ./cmd
+COPY internal ./internal
+ENV CGO_ENABLED=0
+RUN go build -trimpath -buildvcs=false -ldflags='-s -w' -o /out/atlas ./cmd/atlas
+RUN mkdir -p /out/state
+
+FROM scratch
+COPY --from=build /out/atlas /usr/local/bin/atlas
+COPY --from=build --chown=65532:65532 /out/state /var/lib/atlas
+# CA certificates are not needed: the service makes no outbound calls and only
+# serves plain HTTP. /etc/ssl/certs would be dead weight in the read-only layer.
+ENV ATLAS_ADDR=0.0.0.0:8763 \
+    ATLAS_STATE=/var/lib/atlas/state.json
+VOLUME ["/var/lib/atlas"]
+USER 65532:65532
+EXPOSE 8763
+# Liveness only. Readiness (data volume writable and single owner) is a separate
+# probe so a volume problem never causes a restart loop.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
+  CMD ["/usr/local/bin/atlas", "check", "-mode", "live"]
+ENTRYPOINT ["/usr/local/bin/atlas"]

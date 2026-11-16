@@ -5,10 +5,19 @@ import (
 	"atlas-render/internal/persist"
 	"atlas-render/internal/scene"
 	"strings"
+	"sync/atomic"
 	"time"
 )
 
-type Service struct{ Store *persist.Store }
+// Service binds the business rules to the open state store. The store may be
+// attached after construction: a process that starts without a usable data
+// volume stays live, and once the volume becomes usable the same service
+// instance starts committing through it.
+type Service struct{ store atomic.Pointer[persist.Store] }
+
+func (s *Service) Attach(st *persist.Store) { s.store.Store(st) }
+
+func (s *Service) Store() *persist.Store { return s.store.Load() }
 
 func (s *Service) PutScene(id, name string, expected int, d model.Document) (model.Scene, error) {
 	var out model.Scene
@@ -18,7 +27,7 @@ func (s *Service) PutScene(id, name string, expected int, d model.Document) (mod
 	if e := scene.Validate(d); e != nil {
 		return out, e
 	}
-	e := s.Store.Update(func(st *model.State) error {
+	e := s.Store().Update(func(st *model.State) error {
 		old, ok := st.Scenes[id]
 		if old.Revision != expected {
 			return model.Conflict("scene revision changed")
@@ -44,7 +53,7 @@ func (s *Service) SceneState(id string, expected int, target string) (model.Scen
 	if target != "active" && target != "archived" {
 		return out, model.Invalid("unknown scene state")
 	}
-	e := s.Store.Update(func(st *model.State) error {
+	e := s.Store().Update(func(st *model.State) error {
 		v, ok := st.Scenes[id]
 		if !ok {
 			return model.Missing("scene not found")
@@ -68,7 +77,7 @@ func (s *Service) SceneState(id string, expected int, target string) (model.Scen
 }
 func (s *Service) Freeze(id string, expected int) (model.Snapshot, error) {
 	var out model.Snapshot
-	e := s.Store.Update(func(st *model.State) error {
+	e := s.Store().Update(func(st *model.State) error {
 		v, ok := st.Scenes[id]
 		if !ok {
 			return model.Missing("scene not found")
@@ -93,7 +102,7 @@ func (s *Service) Freeze(id string, expected int) (model.Snapshot, error) {
 	return out, e
 }
 func (s *Service) Revoke(id string) error {
-	return s.Store.Update(func(st *model.State) error {
+	return s.Store().Update(func(st *model.State) error {
 		v, ok := st.Snapshots[id]
 		if !ok {
 			return model.Missing("snapshot not found")
